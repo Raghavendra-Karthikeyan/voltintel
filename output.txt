@@ -1,0 +1,4 @@
+[gemini_recommend] FILE VERSION LOADED: v6-gemini36-2026-08-19
+[gemini_recommend] Raw response (43 chars):  matches requested structure (keys: 'reason
+[gemini_recommend] SUCCESS — reason: matches requested structure (keys: 'reason
+API Output: ("matches requested structure (keys: 'reason", 'Monitor and reduce high-draw appliances.')

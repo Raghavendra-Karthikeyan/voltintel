@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>VoltIntel - Energy Overview</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+  <script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          "colors": {
+            "background": "#FAFAFA",
+            "surface": "#FFFFFF",
+            "on-background": "#1A1A1A",
+            "on-surface": "#1A1A1A",
+            "on-surface-variant": "#737373",
+            "primary": "#00FF66",
+            "primary-dim": "rgba(0,255,102,0.15)",
+            "outline": "#E5E5E5",
+            "outline-variant": "#F5F5F5",
+            "danger": "#FF4444",
+          },
+          "fontFamily": {
+            "sans": ["Plus Jakarta Sans", "sans-serif"],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      background-color: transparent;
+      color: #1A1A1A;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .bg-mesh-container {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      background-color: #FAFAFA;
+    }
+
+    .bg-mesh {
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      right: -50%;
+      bottom: -50%;
+      background:
+        radial-gradient(circle at 20% 40%, rgba(0, 255, 102, 0.04), transparent 40%),
+        radial-gradient(circle at 80% 60%, rgba(0, 255, 102, 0.03), transparent 40%);
+      transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      animation: mesh-drift 20s infinite alternate ease-in-out;
+    }
+
+    @keyframes mesh-drift {
+      0% {
+        transform: scale(1) translate(0, 0);
+      }
+
+      100% {
+        transform: scale(1.1) translate(2%, 2%);
+      }
+    }
+
+    .luxury-card {
+      background-color: #FFFFFF;
+      border: 1px solid #E5E5E5;
+      border-radius: 4px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      z-index: 10;
+    }
+
+    .luxury-card:hover {
+      border-color: #00FF66;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 16px 40px -10px rgba(0, 255, 102, 0.15);
+      z-index: 20;
+    }
+
+    .pulse-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: .5;
+        transform: scale(1.2);
+      }
+    }
+
+    @keyframes fade-in {
+      0% {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.5s ease-out forwards;
+    }
+
+    .sparkline-line {
+      fill: none;
+      stroke: #1A1A1A;
+      stroke-width: 1;
+      opacity: 0.2;
+    }
+
+    .luxury-card:hover .sparkline-line {
+      stroke: #00FF66;
+      opacity: 1;
+      stroke-width: 1.5;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #E5E5E5;
+      border-radius: 4px;
+    }
+
+    /* Predict panel styles dependent on state */
+    .forecast-peak {
+      border-left-color: #FF4444 !important;
+    }
+
+    .text-peak {
+      color: #FF4444 !important;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col font-sans font-light relative dark:bg-gray-900">
+  <div class="bg-mesh-container">
+    <div class="bg-mesh" id="interactive-mesh"></div>
+  </div>
+  <header
+    class="flex justify-between items-center w-full px-8 md:px-16 h-20 z-50 bg-surface/80 backdrop-blur-xl border-b border-outline top-0 sticky">
+    <div class="flex items-center gap-12">
+      <h1 class="text-xl font-bold tracking-tight text-on-surface uppercase">Volt<span class="text-primary">Intel</span>
+      </h1>
+      <nav class="hidden md:flex gap-8">
+        <a class="text-on-surface font-semibold text-sm tracking-wider uppercase border-b-2 border-primary pb-1"
+          href="/">Dashboard</a>
+        <a class="text-on-surface-variant hover:text-on-surface transition-colors text-sm tracking-wider uppercase font-medium"
+          href="/history-page">History</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="text-xs uppercase tracking-widest text-on-surface-variant font-bold text-right hidden sm:block">
+        <div id="clock">--:--:--</div>
+        <div id="deviceTime" class="text-[10px] mt-1 font-medium">DEVICE TIME: --</div>
+      </div>
+      <a href="/logout"
+        class="text-on-surface hover:text-primary transition-colors ml-4 text-xs tracking-wider uppercase font-semibold">
+        LOGOUT
+      </a>
+    </div>
+  </header>
+  <main class="flex-grow p-8 md:p-16 max-w-[1400px] mx-auto w-full">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-4">
+      <div>
+        <h2 class="text-4xl font-light text-on-surface mb-2 tracking-tight">Energy Overview</h2>
+        <p class="text-base text-on-surface-variant font-medium tracking-wide">Real-Time Telemetry & Intelligent Power
+          Analytics</p>
+      </div>
+      <div class="flex items-center gap-6 text-sm">
+        <div class="flex items-center gap-2 text-on-surface-variant">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary pulse-dot animate-pulse shadow-[0_0_8px_rgba(0,255,102,0.6)]"
+            id="liveDot"></span>
+          <span class="uppercase tracking-widest text-xs font-semibold" id="liveLabel">Live Feed</span>
+        </div>
+      </div>
+    </div>
+    <!-- Metric Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+      <!-- Voltage -->
+      <div class="luxury-card p-8 flex flex-col relative overflow-hidden h-48">
+        <div class="flex justify-between items-start mb-4">
+          <span class="text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Voltage</span>
+          <span class="text-xs font-bold text-on-surface tracking-wider">NOMINAL</span>
+        </div>
+        <div class="text-4xl font-semibold text-on-surface mb-2 animate-fade-in tracking-tight">
+          <span id="val_voltage">--</span> <span class="text-lg text-on-surface-variant font-medium">V</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-16 opacity-30">
+          <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 30">
+            <path class="sparkline-line transition-all duration-300" d="M0,15 Q10,5 20,20 T40,10 T60,25 T80,15 T100,5">
+            </path>
+          </svg>
+        </div>
+      </div>
+      <!-- Current -->
+      <div class="luxury-card p-8 flex flex-col relative overflow-hidden h-48">
+        <div class="flex justify-between items-start mb-4">
+          <span class="text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Current</span>
+          <span class="text-xs font-bold text-on-surface tracking-wider">STABLE</span>
+        </div>
+        <div class="text-4xl font-semibold text-on-surface mb-2 animate-fade-in tracking-tight">
+          <span id="val_current">--</span> <span class="text-lg text-on-surface-variant font-medium">A</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-16 opacity-30">
+          <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 30">
+            <path class="sparkline-line transition-all duration-300" d="M0,20 Q15,25 30,15 T60,20 T80,10 T100,15">
+            </path>
+          </svg>
+        </div>
+      </div>
+      <!-- Power -->
+      <div class="luxury-card p-8 flex flex-col relative overflow-hidden h-48">
+        <div class="flex justify-between items-start mb-4">
+          <span class="text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Power Load</span>
+          <span class="text-xs font-bold text-on-surface tracking-wider">LIVE</span>
+        </div>
+        <div class="text-4xl font-semibold text-on-surface mb-2 animate-fade-in tracking-tight">
+          <span id="val_power">--</span> <span class="text-lg text-on-surface-variant font-medium">W</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-16 opacity-30">
+          <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 30">
+            <path class="sparkline-line transition-all duration-300" d="M0,10 Q20,25 40,5 T70,15 T100,5"></path>
+          </svg>
+        </div>
+      </div>
+      <!-- Energy -->
+      <div class="luxury-card p-8 flex flex-col relative overflow-hidden h-48">
+        <div class="flex justify-between items-start mb-4">
+          <span class="text-xs uppercase tracking-widest text-on-surface-variant font-semibold">Net Energy</span>
+          <span class="text-xs font-bold text-on-surface tracking-wider">CUMULATIVE (24H)</span>
+        </div>
+        <div class="text-4xl font-semibold text-on-surface mb-2 animate-fade-in tracking-tight">
+          <span id="val_energy">--</span> <span class="text-lg text-on-surface-variant font-medium">kWh</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-16 opacity-30">
+          <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 30">
+            <path class="sparkline-line transition-all duration-300" d="M0,25 Q25,25 50,15 T80,5 T100,2"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <!-- Main Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+      <!-- Chart Area (2/3) -->
+      <div class="luxury-card lg:col-span-2 p-8 flex flex-col min-h-[480px]">
+        <div class="flex justify-between items-center mb-10">
+          <h3 class="text-xl font-medium text-on-surface tracking-wide">Active Power Consumption Trend</h3>
+          <div class="flex gap-2">
+            <button
+              class="px-3 py-1.5 bg-on-surface text-surface text-xs uppercase tracking-wider font-bold rounded-sm shadow-md">Live</button>
+          </div>
+        </div>
+        <div class="flex-grow w-full rounded-sm" style="position: relative; min-height: 400px;">
+          <canvas id="powerChart"></canvas>
+        </div>
+      </div>
+      <!-- System Status (1/3) -->
+      <div class="luxury-card p-8 flex flex-col">
+        <h3 class="text-xl font-medium text-on-surface mb-10 tracking-wide">System Diagnostics</h3>
+        <div class="flex-grow flex flex-col items-center justify-center mb-10">
+          <div class="relative w-48 h-48 flex items-center justify-center">
+            <div
+              class="w-36 h-36 rounded-full border-2 border-outline flex items-center justify-center shadow-inner bg-surface"
+              id="statusCircle">
+              <div class="text-center">
+                <div class="text-xl font-bold text-on-surface tracking-widest uppercase" id="statusText">Healthy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-6">
+          <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-primary text-base font-medium" id="icon1">check_circle</span>
+            <span class="text-sm text-on-surface font-medium" id="lbl1">Grid Normal</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-primary text-base font-medium">check_circle</span>
+            <span class="text-sm text-on-surface font-medium">Telemetry Connected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Bottom Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- ML Forecast -->
+      <div class="luxury-card p-8 flex flex-col border-l-4 border-l-primary" id="forecastPanel">
+        <div class="flex justify-between items-start mb-8">
+          <h3 class="text-xl font-medium text-on-surface tracking-wide">ML Forecast</h3>
+          <span class="text-xs tracking-widest text-on-surface-variant uppercase font-bold"
+            id="forecastBadge">MODEL</span>
+        </div>
+        <div class="mb-8">
+          <div class="text-5xl font-semibold text-on-surface mb-2 animate-fade-in tracking-tight">
+            <span id="val_predPower">--</span> <span class="text-xl text-on-surface-variant font-medium">W</span>
+          </div>
+          <div class="text-sm text-on-surface-variant font-medium">Predicted peak load</div>
+        </div>
+        <div class="mt-auto pt-6 border-t border-outline space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Time</span>
+            <span class="text-sm font-bold text-on-surface tracking-tight" id="val_predTime">--:--:--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Status</span>
+            <span class="text-sm font-bold text-on-surface tracking-tight" id="val_predStatus">NORMAL</span>
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Confidence</span>
+              <span class="text-xs font-bold text-on-surface">92.4%</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2 overflow-hidden">
+              <div class="bg-primary h-1.5 rounded-full" style="width: 92.4%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insight & Recommendation -->
+      <div class="luxury-card p-8 flex flex-col border-l-4 border-l-blue-500" id="insightPanel">
+        <div class="flex justify-between items-start mb-6">
+          <h3 class="text-xl font-medium text-on-surface tracking-wide">Insight</h3>
+          <span class="text-xs tracking-widest text-blue-500 uppercase font-bold" id="insightBadge">ANALYSIS</span>
+        </div>
+        <div class="mb-4">
+          <span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Likely Cause</span>
+          <p class="text-sm text-on-surface font-medium leading-relaxed mt-1" id="val_predReason">—</p>
+        </div>
+        <div class="mt-auto pt-4 border-t border-outline">
+          <span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Recommendation</span>
+          <p class="text-sm text-on-surface font-medium leading-relaxed mt-1" id="val_predTip">Gathering sufficient
+            baseline data for inference engine...</p>
+        </div>
+      </div>
+
+      <!-- Alerts / Notification Placeholder -->
+      <div class="luxury-card p-8 flex flex-col">
+        <div class="flex justify-between items-center mb-8">
+          <h3 class="text-xl font-medium text-on-surface tracking-wide">System Notifications</h3>
+          <span class="material-symbols-outlined text-on-surface-variant font-medium">notifications_active</span>
+        </div>
+        <div class="space-y-6 flex-grow overflow-y-auto pr-2">
+          <div class="flex gap-4 items-start pb-6 border-b border-outline">
+            <span class="material-symbols-outlined text-primary text-base mt-1 font-medium" id="notifyIcon">info</span>
+            <div>
+              <div class="text-sm font-bold text-on-surface mb-1" id="notifyTitle">System operating normally</div>
+              <div class="text-xs text-on-surface-variant font-medium" id="notifyDesc">Data is continually analyzed
+                against our trained models in the background. Peak periods will trigger alert emails automatically.
+              </div>
+              <div class="text-xs text-on-surface-variant mt-2 uppercase tracking-widest font-semibold">Live System
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    // Interactive mesh background
+    document.addEventListener('mousemove', (e) => {
+      const mesh = document.getElementById('interactive-mesh');
+      if (mesh) {
+        const x = (e.clientX / window.innerWidth - 0.5) * 30;
+        const y = (e.clientY / window.innerHeight - 0.5) * 30;
+        mesh.style.transform = `translate(${x}px, ${y}px)`;
+      }
+    });
+
+    // Chart.js Setup
+    const ctx = document.getElementById('powerChart').getContext('2d');
+
+    // Create soft gradient for chart
+    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(0, 255, 102, 0.4)');
+    gradient.addColorStop(1, 'rgba(0, 255, 102, 0.0)');
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Power (W)',
+          data: [],
+          borderColor: '#00FF66',
+          backgroundColor: gradient,
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 0,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { ticks: { color: '#737373', font: { family: 'Plus Jakarta Sans', size: 10 } }, grid: { color: '#E5E5E5' } },
+          y: { ticks: { color: '#737373', font: { family: 'Plus Jakarta Sans', size: 10 } }, grid: { color: '#E5E5E5' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // Clock
+    function updateClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    let lastPlottedTimestamp = null;
+
+    // Polling Backend
+    async function poll() {
+      try {
+        const res = await fetch('/latest');
+        const data = await res.json();
+        if (data.status !== 'ok') return;
+        const r = data.record;
+
+        document.getElementById('val_voltage').textContent = r.Voltage.toFixed(1);
+        document.getElementById('val_current').textContent = (r.Current || 0).toFixed(2);
+        document.getElementById('val_power').textContent = r.Power.toFixed(1);
+        document.getElementById('val_energy').textContent = (r.Energy || 0).toFixed(3);
+
+        const weekendLabel = r.device_is_weekend ? 'Weekend' : 'Weekday';
+        document.getElementById('deviceTime').textContent =
+          `DEVICE (NTP): Day ${r.device_day}, Hr ${String(r.device_hour).padStart(2, '0')}:00`;
+
+        // Update Forecast & Alerts if peak
+        const forecastPanel = document.getElementById('forecastPanel');
+        const forecastBadge = document.getElementById('forecastBadge');
+
+        document.getElementById('val_predPower').textContent = r.predicted_power;
+        document.getElementById('val_predTime').textContent = r.predicted_time;
+
+        if (r.reason) {
+          document.getElementById('val_predReason').textContent = r.reason;
+        } else {
+          document.getElementById('val_predReason').textContent = '—';
+        }
+
+        if (r.tip) {
+          document.getElementById('val_predTip').textContent = r.tip;
+        } else if (!r.is_peak) {
+          document.getElementById('val_predTip').textContent = 'Values are in optimal range. Keep steady patterns.';
+        }
+
+        if (r.is_peak) {
+          forecastPanel.style.borderLeftColor = '#FF4444';
+          forecastBadge.textContent = 'PEAK';
+          forecastBadge.style.color = '#FF4444';
+          document.getElementById('insightPanel').style.borderLeftColor = '#FF4444';
+          document.getElementById('insightBadge').style.color = '#FF4444';
+          document.getElementById('val_predPower').style.color = '#FF4444';
+          document.getElementById('val_predStatus').textContent = 'PEAK LOAD';
+          document.getElementById('val_predStatus').style.color = '#FF4444';
+        } else {
+          forecastPanel.style.borderLeftColor = '#00FF66';
+          forecastBadge.textContent = 'NORMAL';
+          forecastBadge.style.color = '#1A1A1A';
+          document.getElementById('insightPanel').style.borderLeftColor = '#3B82F6';
+          document.getElementById('insightBadge').style.color = '#3B82F6';
+          document.getElementById('val_predPower').style.color = '#1A1A1A';
+          document.getElementById('val_predStatus').textContent = 'NORMAL';
+          document.getElementById('val_predStatus').style.color = '#1A1A1A';
+        }
+
+        // Diagnostics
+        if (r.Disturbance === 'NORMAL') {
+          document.getElementById('statusText').textContent = 'Healthy';
+          document.getElementById('statusText').style.color = '#1A1A1A';
+          document.getElementById('statusCircle').style.borderColor = '#E5E5E5';
+          document.getElementById('icon1').textContent = 'check_circle';
+          document.getElementById('icon1').style.color = '#00FF66';
+          document.getElementById('lbl1').textContent = 'Grid Normal';
+        } else {
+          document.getElementById('statusText').textContent = 'Alert';
+          document.getElementById('statusText').style.color = '#FF4444';
+          document.getElementById('statusCircle').style.borderColor = '#FF4444';
+          document.getElementById('icon1').textContent = 'warning';
+          document.getElementById('icon1').style.color = '#FF4444';
+          document.getElementById('lbl1').textContent = 'Disturbance (' + r.Disturbance + ')';
+        }
+
+        // Chart Update
+        if (r.timestamp !== lastPlottedTimestamp) {
+          chart.data.labels.push(r.timestamp);
+          chart.data.datasets[0].data.push(r.Power);
+          if (chart.data.labels.length > 30) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+          }
+          chart.update();
+          lastPlottedTimestamp = r.timestamp;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setInterval(poll, 1000);
+    poll();
+  </script>
+</body>
+
+</html>

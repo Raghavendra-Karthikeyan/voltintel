@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>VoltIntel - Energy History</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+  <script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          "colors": {
+            "background": "#FAFAFA",
+            "surface": "#FFFFFF",
+            "on-background": "#1A1A1A",
+            "on-surface": "#1A1A1A",
+            "on-surface-variant": "#737373",
+            "primary": "#00FF66",
+            "outline": "#E5E5E5",
+          },
+          "fontFamily": {
+            "sans": ["Plus Jakarta Sans", "sans-serif"],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      background-color: transparent;
+      color: #1A1A1A;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .bg-mesh-container {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      background-color: #FAFAFA;
+    }
+
+    .bg-mesh {
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      right: -50%;
+      bottom: -50%;
+      background: radial-gradient(circle at 20% 40%, rgba(0, 255, 102, 0.04), transparent 40%),
+        radial-gradient(circle at 80% 60%, rgba(0, 255, 102, 0.03), transparent 40%);
+      animation: mesh-drift 20s infinite alternate ease-in-out;
+    }
+
+    @keyframes mesh-drift {
+      0% {
+        transform: scale(1) translate(0, 0);
+      }
+
+      100% {
+        transform: scale(1.1) translate(2%, 2%);
+      }
+    }
+
+    .luxury-card {
+      background-color: #FFFFFF;
+      border: 1px solid #E5E5E5;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #E5E5E5;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col font-sans font-light relative dark:bg-gray-900">
+  <div class="bg-mesh-container">
+    <div class="bg-mesh"></div>
+  </div>
+
+  <header
+    class="flex justify-between items-center w-full px-8 md:px-16 h-20 z-50 bg-surface/80 backdrop-blur-xl border-b border-outline top-0 sticky">
+    <div class="flex items-center gap-12">
+      <h1 class="text-xl font-bold tracking-tight text-on-surface uppercase">Volt<span class="text-primary">Intel</span>
+      </h1>
+      <nav class="hidden md:flex gap-8">
+        <a class="text-on-surface-variant hover:text-on-surface transition-colors text-sm tracking-wider uppercase font-medium"
+          href="/">Dashboard</a>
+        <a class="text-on-surface font-semibold text-sm tracking-wider uppercase border-b-2 border-primary pb-1"
+          href="/history-page">History</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-6">
+      <a href="/logout"
+        class="text-on-surface hover:text-primary transition-colors text-xs tracking-wider uppercase font-semibold">LOGOUT</a>
+    </div>
+  </header>
+
+  <main class="flex-grow p-8 md:p-16 max-w-[1400px] mx-auto w-full">
+    <div class="mb-10">
+      <h2 class="text-4xl font-light text-on-surface mb-2 tracking-tight">Telemetry Log</h2>
+      <p class="text-base text-on-surface-variant font-medium tracking-wide" id="metaInfo">Loading...</p>
+    </div>
+
+    <div class="luxury-card overflow-x-auto">
+      <table class="min-w-full text-sm text-left">
+        <thead class="bg-gray-50 border-b border-outline">
+          <tr>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Time</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Voltage</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Current</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Power</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Energy</th>
+            <th
+              class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold hidden md:table-cell">
+              Env</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Disturbance</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">Forecast</th>
+            <th class="px-6 py-4 text-xs tracking-wider text-on-surface-variant uppercase font-bold">AI Note</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody" class="divide-y divide-gray-100 bg-white"></tbody>
+      </table>
+      <div id="emptyState" class="text-center py-16 text-on-surface-variant font-medium" style="display:none;">
+        No telemetry records yet. Await Wokwi simulation sync.
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function loadHistory() {
+      try {
+        const res = await fetch('/history');
+        const data = await res.json();
+        const tbody = document.getElementById('historyBody');
+        const emptyState = document.getElementById('emptyState');
+        const meta = document.getElementById('metaInfo');
+
+        if (data.status !== 'ok' || !data.records || data.records.length === 0) {
+          emptyState.style.display = 'block';
+          meta.textContent = 'No records found.';
+          tbody.innerHTML = '';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        const records = [...data.records].reverse();
+        meta.textContent = `Displaying ${records.length} recent telemetry snapshots.`;
+
+        tbody.innerHTML = records.map(r => {
+          const isNormal = r.Disturbance === 'NORMAL';
+          const distBadge = isNormal
+            ? `<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-bold uppercase tracking-widest">${r.Disturbance}</span>`
+            : `<span class="px-2 py-1 bg-red-100 text-red-600 rounded text-[10px] font-bold uppercase tracking-widest">${r.Disturbance}</span>`;
+
+          const peakBadge = r.is_peak
+            ? `<span class="px-2 py-1 bg-red-100 text-red-600 rounded text-[10px] font-bold uppercase tracking-widest">PEAK</span>`
+            : `<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] font-bold uppercase tracking-widest">NORMAL</span>`;
+
+          return `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-6 py-4 whitespace-nowrap font-medium text-on-surface">${r.timestamp}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-on-surface-variant">${r.Voltage.toFixed(1)} V</td>
+        <td class="px-6 py-4 whitespace-nowrap text-on-surface-variant">${(r.Current || 0).toFixed(2)} A</td>
+        <td class="px-6 py-4 whitespace-nowrap font-semibold text-on-surface">${r.Power.toFixed(1)} W</td>
+        <td class="px-6 py-4 whitespace-nowrap text-on-surface-variant">${(r.Energy || 0).toFixed(3)} kWh</td>
+        <td class="px-6 py-4 whitespace-nowrap text-on-surface-variant text-xs hidden md:table-cell">${r.Temperature.toFixed(0)}°C / ${r.Humidity.toFixed(0)}%</td>
+        <td class="px-6 py-4 whitespace-nowrap">${distBadge}</td>
+        <td class="px-6 py-4 whitespace-nowrap">
+           <div class="text-xs font-semibold text-on-surface">${r.predicted_power} W</div>
+           <div class="text-[10px] text-on-surface-variant mt-1">${peakBadge} at ${r.predicted_time}</div>
+        </td>
+        <td class="px-6 py-4 text-xs min-w-[200px] whitespace-normal text-on-surface-variant">${r.reason ? (r.reason + (r.tip ? ' — ' + r.tip : '')) : '—'}</td>
+      </tr>
+    `}).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    loadHistory();
+    setInterval(loadHistory, 3000); 
+  </script>
+</body>
+
+</html>

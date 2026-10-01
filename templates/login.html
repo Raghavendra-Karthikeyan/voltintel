@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>VoltIntel - Login</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      background-color: transparent;
+      color: #1A1A1A;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .bg-mesh-container {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      background-color: #FAFAFA;
+    }
+
+    .bg-mesh {
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      right: -50%;
+      bottom: -50%;
+      background: radial-gradient(circle at 20% 40%, rgba(0, 255, 102, 0.04), transparent 40%),
+        radial-gradient(circle at 80% 60%, rgba(0, 255, 102, 0.03), transparent 40%);
+      animation: mesh-drift 20s infinite alternate ease-in-out;
+    }
+
+    @keyframes mesh-drift {
+      0% {
+        transform: scale(1) translate(0, 0);
+      }
+
+      100% {
+        transform: scale(1.1) translate(2%, 2%);
+      }
+    }
+
+    .luxury-card {
+      background-color: #FFFFFF;
+      border: 1px solid #E5E5E5;
+      border-radius: 4px;
+      box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center font-sans font-light relative dark:bg-gray-900 px-4">
+  <div class="bg-mesh-container">
+    <div class="bg-mesh"></div>
+  </div>
+
+  <div class="luxury-card w-full max-w-sm p-10 flex flex-col items-center">
+    <h1 class="text-2xl font-bold tracking-tight text-[#1A1A1A] uppercase mb-8">Volt<span
+        class="text-[#00FF66]">Intel</span></h1>
+
+    {% if error %}
+    <div
+      class="w-full p-3 mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-semibold uppercase tracking-wider">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/login" class="w-full space-y-6">
+      <div>
+        <label class="block text-[10px] uppercase tracking-widest text-[#737373] font-bold mb-2">Phone Number</label>
+        <input type="tel" name="phone" required placeholder="e.g. 9876543210"
+          class="w-full border-[#E5E5E5] rounded p-3 text-sm focus:border-[#00FF66] focus:ring-1 focus:ring-[#00FF66] outline-none transition-colors">
+      </div>
+
+      <div>
+        <label class="block text-[10px] uppercase tracking-widest text-[#737373] font-bold mb-2">Password</label>
+        <input type="password" name="password" required
+          class="w-full border-[#E5E5E5] rounded p-3 text-sm focus:border-[#00FF66] focus:ring-1 focus:ring-[#00FF66] outline-none transition-colors">
+      </div>
+
+      <button type="submit"
+        class="w-full bg-[#1A1A1A] hover:bg-[#00FF66] hover:text-[#1A1A1A] text-white transition-colors duration-300 py-3 rounded text-xs uppercase tracking-widest font-bold shadow-md">
+        Authenticate
+      </button>
+    </form>
+
+    <div class="mt-8 text-xs text-[#737373] font-medium">
+      No telemetry access? <a href="/signup"
+        class="text-[#1A1A1A] font-bold hover:text-[#00FF66] transition-colors underline decoration-2 underline-offset-4">Register</a>
+    </div>
+  </div>
+
+</body>
+
+</html>
